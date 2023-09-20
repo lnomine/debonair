@@ -63,7 +63,16 @@ then
 earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interface ; ip route add $gateway dev $interface; ip route add default via $gateway dev $interface; mv /sbin/ip /sbin/ip2 ; echo exit 0 > /sbin/ip'"
 type=""
 debconfgateway="none"
-latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
+
+latecommand="; cat <<EOF >> /etc/network/interfaces
+auto $interface
+iface $interface inet static
+    address $ip
+    netmask $netmask
+    gateway $gateway
+EOF
+echo nameserver 8.8.8.8 > /etc/resolv.conf'"
+
 else
 debconfgateway=$gateway
 earlycheck="exit 0"
