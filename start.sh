@@ -12,23 +12,25 @@ show_help() {
     echo "  -o <override>   Override of network (mandatory, 0 for none)"
     echo "  -r <rootsize>   Size of the root partition (mandatory)"
     echo "  -m <mirror>     Mirror (mandatory, use an IP if override is set)"
+    echo "  -d <directory>  Directory for the space that will remain (mandatory)"
     exit 1
 }
 
-while getopts "h:o:r:m:" flag
+while getopts "h:o:r:m:d:" flag
 do
     case "${flag}" in
         h) hostname=${OPTARG};;
         o) override=${OPTARG};;
         r) rootsize=${OPTARG};;
         m) mirror=${OPTARG};;
+        d) directory=${OPTARG};;
         \?) echo "Invalid option : -$OPTARG" >&2
             show_help
             ;;
     esac
 done
 
-if [ -z "$hostname" ] || [ -z "$override" ] || [ -z "$rootsize" ] || [ -z "$mirror" ]; then
+if [ -z "$hostname" ] || [ -z "$override" ] || [ -z "$rootsize" ] || [ -z "$mirror" ] || [ -z "$directory" ]; then
     echo "Missing options."
     show_help
 fi
@@ -44,11 +46,14 @@ files=("linux" "initrd.gz")
 
 ### Workarounds
 
-if [ "$dns" == "127.0.0.53" ]; 
+
+# Some providers are using systemd-resolved, some not...
+if [ "$dns" == "127.0.0.53" ];
 then
 dns=$(grep -w "DNS" /etc/systemd/resolved.conf | grep -v "\#" | cut -d '=' -f2 | awk '{ print $1 }')
 fi
 
+# Many images out there, with altnames... or not. WIP: improve the interface variable.
 if [[ "$gateway" =~ "172.31" ]] || [[ "$HOSTNAME" == "template" ]];
 then
 checkinterface=$(ip addr | grep altname | tail -1 | awk '{ print $2 }')
@@ -60,10 +65,16 @@ fi
 
 if [ "$override" != "0" ];
 then
+
+# Ugly hack that prevents d-i to configure the network by itself, using /sbin/ip. Keeping the old /sbin/ip for diag purposes and exiting gracefully when used by d-i.
 earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interface ; ip route add $gateway dev $interface; ip route add default via $gateway dev $interface; mv /sbin/ip /sbin/ip2 ; echo exit 0 > /sbin/ip'"
+
 type=""
 debconfgateway="none"
+
+# Refer to earlycheck's comment. Might be a better way to have a static config in an override scenario.
 latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
+
 cat <<- EOF > preseed.cfg
 d-i netcfg/enable boolean false
 EOF
@@ -106,8 +117,9 @@ d-i mirror/country string manual
 d-i mirror/protocol string http
 d-i mirror/http/hostname string $mirror
 d-i mirror/http/directory string /debian
-d-i mirror/http/proxy string 
+d-i mirror/http/proxy string
 d-i mirror/suite string bookworm
+d-i partman-auto/expert_recipe  string  naive :: $rootsize $rootsize $rootsize ext4 $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . 10 10 10 linux-swap method{ swap } format{ } . 64 1000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } $defaultignore{ } mountpoint{ $directory } .
 d-i passwd/root-login boolean true
 d-i passwd/make-user boolean false
 d-i passwd/root-password-crypted password $password
@@ -150,17 +162,6 @@ d-i grub-installer/bootdev string default
 d-i grub-installer/force-efi-extra-removable boolean true
 d-i finish-install/reboot_in_progress note
 EOF
-
-if [ "$rootsize" -gt "10000" ];
-then
-cat <<- EOF >> preseed.cfg
-d-i partman-auto/expert_recipe  string  naive :: $rootsize $rootsize $rootsize ext4 $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . 10 10 10 linux-swap method{ swap } format{ } . 64 1000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } $defaultignore{ } mountpoint{ /data } .
-EOF
-else
-cat <<- EOF >> preseed.cfg
-d-i partman-auto/expert_recipe  string  naive :: $rootsize $rootsize $rootsize ext4 $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . 10 10 10 linux-swap method{ swap } format{ } . 64 1000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } $defaultignore{ } mountpoint{ /var/lib } .
-EOF
-fi
 
 for file in "${files[@]}"; do
   until curl -sLO "$base_url/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/$file"; do

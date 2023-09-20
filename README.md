@@ -11,7 +11,7 @@ git clone https://github.com/lnomine/debonair.git
 ## Usage
 
 ```bash
-./start.sh -h myhostname -o 0 -r 10000 -m my.http.repo
+./start.sh -h myhostname -o 0 -r 10000 -m my.http.repo -d /var/lib
 
 # -o 'override' if your netmask/gateway is considered as invalid by the Debian installer
 
