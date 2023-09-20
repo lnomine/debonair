@@ -1,26 +1,45 @@
 #!/bin/bash
 
-source vars.sh
-mkdir /boot/debian-bookworm && cd "$_"
+hostname=""
+override=""
+rootsize=""
+mirror=""
 
-while getopts h:o:r:m: flag
+show_help() {
+    echo "Usage : $0 -h <hostname> -o <override> -r <rootsize> -m <mirror>"
+    echo "Options :"
+    echo "  -h <hostname>   Hostname of the target (mandatory)"
+    echo "  -o <override>   Override of network (mandatory, 0 for none)"
+    echo "  -r <rootsize>   Size of the root partition (mandatory)"
+    echo "  -m <mirror>     Mirror (mandatory, use an IP if override is set)"
+    exit 1
+}
+
+while getopts "h:o:r:m:" flag
 do
     case "${flag}" in
         h) hostname=${OPTARG};;
         o) override=${OPTARG};;
         r) rootsize=${OPTARG};;
         m) mirror=${OPTARG};;
+        \?) echo "Invalid option : -$OPTARG" >&2
+            show_help
+            ;;
     esac
 done
 
-### Initial vars
+if [ -z "$hostname" ] || [ -z "$override" ] || [ -z "$rootsize" ] || [ -z "$mirror" ]; then
+    echo "Missing options."
+    show_help
+fi
 
-debconfgateway=$gateway
-earlycheck="exit 0"
-type="string"
-latecommand="'"
+source vars.sh
+mkdir /boot/debian-bookworm && cd "$_" || exit
+
+### Preseed-only vars
+
 base_url="http://${mirror}"
-scsimod=$(curl -s ${base_url}/debian/dists/bookworm/main/installer-amd64/current/images/udeb.list | grep scsi-modules | cut -d ' ' -f1)
+scsimod=$(curl -s "${base_url}"/debian/dists/bookworm/main/installer-amd64/current/images/udeb.list | grep scsi-modules | cut -d ' ' -f1)
 files=("linux" "initrd.gz")
 
 ### Workarounds
@@ -33,7 +52,7 @@ fi
 if [[ "$gateway" =~ "172.31" ]] || [[ "$HOSTNAME" == "template" ]];
 then
 checkinterface=$(ip addr | grep altname | tail -1 | awk '{ print $2 }')
-if [ ! -z "$checkinterface" ];
+if [ -n "$checkinterface" ];
 then
 interface=${checkinterface}
 fi
@@ -45,6 +64,15 @@ earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interf
 type=""
 debconfgateway="none"
 latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
+cat <<- EOF > preseed.cfg
+d-i netcfg/enable boolean false
+EOF
+
+else
+debconfgateway=$gateway
+earlycheck="exit 0"
+type="string"
+latecommand="'"
 fi
 
 grep -q "/boot" /boot/grub/grub.cfg
@@ -55,7 +83,7 @@ else
 bootpart="/boot/"
 fi
 
-cat <<- EOF > preseed.cfg
+cat <<- EOF >> preseed.cfg
 d-i anna/choose_modules_lowmem multiselect partman-auto, $scsimod
 d-i apt-setup/security_host string $mirror
 d-i debian-installer/language string en
@@ -123,13 +151,6 @@ d-i grub-installer/force-efi-extra-removable boolean true
 d-i finish-install/reboot_in_progress note
 EOF
 
-if [ "$debconfgateway" == "none" ]; 
-then
-cat <<- EOF >> preseed.cfg
-d-i netcfg/enable boolean false
-EOF
-fi
-
 if [ "$rootsize" -gt "10000" ];
 then
 cat <<- EOF >> preseed.cfg
@@ -154,7 +175,7 @@ echo preseed.cfg | cpio -o -H newc -A -F initrd
 gzip -1 initrd
 
 cat <<- EOF > /etc/default/grub
-GRUB_DEFAULT=debi
+GRUB_DEFAULT=debonair
 GRUB_TIMEOUT=1
 GRUB_TIMEOUT_STYLE=menu
 EOF
@@ -162,7 +183,7 @@ EOF
 update-grub
 
 cat <<- EOF >> /boot/grub/grub.cfg
-menuentry 'Debian Installer' --id debi {
+menuentry 'Debonair automatic installer' --id debonair {
     insmod part_msdos
     insmod part_gpt
     insmod ext2
