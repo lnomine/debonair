@@ -130,6 +130,7 @@ d-i netcfg/get_hostname string $hostname
 d-i netcfg/get_domain string
 d-i partman-auto/expert_recipe  string  naive :: $rootsize $rootsize $rootsize ext4 $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . 10 10 10 linux-swap method{ swap } format{ } . 64 1000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } $defaultignore{ } mountpoint{ $directory } .
 d-i partman-auto/method string regular
+d-i partman/early_command string debconf-set partman-auto/disk "\$(list-devices disk | head -n 1)"
 d-i partman-partitioning/choose_label string gpt
 d-i partman-partitioning/default_label string gpt
 d-i partman/default_filesystem string ext4 .
@@ -156,10 +157,6 @@ d-i preseed/early_command string $earlycheck
 d-i time/zone string UTC
 popularity-contest popularity-contest/participate boolean false
 tasksel tasksel/first multiselect ssh-server
-EOF
-
-cat <<- 'EOF' >> preseed.cfg
-d-i partman/early_command string debconf-set partman-auto/disk "$(list-devices disk | head -n 1)"
 EOF
 
 for file in "${files[@]}"; do
