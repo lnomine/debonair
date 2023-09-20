@@ -64,6 +64,10 @@ earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interf
 type=""
 debconfgateway="none"
 latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
+cat <<- EOF > preseed.cfg
+d-i netcfg/enable boolean false
+EOF
+
 else
 debconfgateway=$gateway
 earlycheck="exit 0"
@@ -79,7 +83,7 @@ else
 bootpart="/boot/"
 fi
 
-cat <<- EOF > preseed.cfg
+cat <<- EOF >> preseed.cfg
 d-i anna/choose_modules_lowmem multiselect partman-auto, $scsimod
 d-i apt-setup/security_host string $mirror
 d-i debian-installer/language string en
@@ -146,13 +150,6 @@ d-i grub-installer/bootdev string default
 d-i grub-installer/force-efi-extra-removable boolean true
 d-i finish-install/reboot_in_progress note
 EOF
-
-if [ "$debconfgateway" == "none" ]; 
-then
-cat <<- EOF >> preseed.cfg
-d-i netcfg/enable boolean false
-EOF
-fi
 
 if [ "$rootsize" -gt "10000" ];
 then
