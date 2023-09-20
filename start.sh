@@ -64,19 +64,16 @@ fi
 
 if [ "$override" != "0" ];
 then
-
-# Ugly hack that prevents d-i to configure the network by itself, using /sbin/ip. Keeping the old /sbin/ip for diag purposes and exiting gracefully when used by d-i.
-earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interface ; ip route add $gateway dev $interface; ip route add default via $gateway dev $interface; mv /sbin/ip /sbin/ip2 ; echo exit 0 > /sbin/ip'"
-
 type=""
 debconfgateway="none"
-
-# Refer to earlycheck's comment. Might be a better way to have a static config in an override scenario.
-latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
-
 cat <<- EOF > preseed.cfg
 d-i netcfg/enable boolean false
 EOF
+
+# Ugly hack that prevents d-i to configure the network by itself, using /sbin/ip. Keeping the old /sbin/ip for diag purposes and exiting gracefully when used by d-i.
+earlycheck="sh -c 'ip link set dev $interface up ; ip addr add $link dev $interface ; ip route add $gateway dev $interface; ip route add default via $gateway dev $interface; mv /sbin/ip /sbin/ip2 ; echo exit 0 > /sbin/ip'"
+# Refer to earlycheck's comment. Might be a better way to have a static config in an override scenario.
+latecommand="; echo auto $interface >> /etc/network/interfaces ; echo iface $interface inet static >> /etc/network/interfaces ; echo address $ip >> /etc/network/interfaces ; echo netmask $netmask >> /etc/network/interfaces ; echo gateway $gateway >> /etc/network/interfaces ; echo nameserver 8.8.8.8 > /etc/resolv.conf'"
 
 else
 debconfgateway=$gateway
@@ -96,13 +93,32 @@ fi
 
 cat <<- EOF >> preseed.cfg
 d-i anna/choose_modules_lowmem multiselect partman-auto, $scsimod
+d-i apt-setup/services-select multiselect security, updates
+d-i apt-setup/security_path string /debian-security
 d-i apt-setup/security_host string $mirror
+d-i apt-setup/services-select multiselect security, updates
+d-i apt-setup/security_path string /debian-security
+d-i base-installer/kernel/image string linux-image-amd64
+d-i base-installer/install-recommends boolean false
+d-i clock-setup/utc boolean true
+d-i clock-setup/ntp boolean true
+d-i clock-setup/ntp-server string 0.debian.pool.ntp.org
 d-i debian-installer/language string en
 d-i debian-installer/country string US
 d-i debian-installer/locale string en_US.UTF-8
 d-i debian-installer/allow_unauthenticated boolean true
-d-i lowmem/low boolean true
+d-i finish-install/reboot_in_progress note
+d-i grub-installer/bootdev string default
+d-i grub-installer/force-efi-extra-removable boolean true
+d-i hw-detect/load_firmware boolean false
 d-i keyboard-configuration/xkb-keymap select us
+d-i lowmem/low boolean true
+d-i mirror/country string manual
+d-i mirror/protocol string http
+d-i mirror/http/hostname string $mirror
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+d-i mirror/suite string bookworm
 d-i netcfg/choose_interface select auto
 d-i netcfg/disable_autoconfig boolean true
 d-i netcfg/get_ipaddress string $ip
@@ -112,32 +128,9 @@ d-i netcfg/get_nameservers string $dns
 d-i netcfg/confirm_static boolean true
 d-i netcfg/get_hostname string $hostname
 d-i netcfg/get_domain string
-d-i hw-detect/load_firmware boolean false
-d-i mirror/country string manual
-d-i mirror/protocol string http
-d-i mirror/http/hostname string $mirror
-d-i mirror/http/directory string /debian
-d-i mirror/http/proxy string
-d-i mirror/suite string bookworm
 d-i partman-auto/expert_recipe  string  naive :: $rootsize $rootsize $rootsize ext4 $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } mountpoint{ / } . 10 10 10 linux-swap method{ swap } format{ } . 64 1000 -1 ext4 method{ format } format{ } use_filesystem{ } filesystem{ ext4 } $defaultignore{ } mountpoint{ $directory } .
-d-i passwd/root-login boolean true
-d-i passwd/make-user boolean false
-d-i passwd/root-password-crypted password $password
-d-i pkgsel/upgrade select full-upgrade
-d-i time/zone string UTC
-d-i clock-setup/utc boolean true
-d-i clock-setup/ntp boolean true
-d-i clock-setup/ntp-server string 0.debian.pool.ntp.org
-d-i preseed/late_command string \
-in-target sh -c 'sed -Ei "s/^#?PermitRootLogin .+/PermitRootLogin yes/" /etc/ssh/sshd_config'; \
-in-target sed -i 's/quiet/& apparmor=0/' /etc/default/grub; \
-in-target grub-mkconfig -o /boot/grub/grub.cfg; \
-in-target sh -c 'echo $hostname > /etc/hostname $latecommand
-d-i preseed/early_command string $earlycheck
-EOF
-cat <<- 'EOF' >> preseed.cfg
 d-i partman-auto/method string regular
-d-i partman/early_command string debconf-set partman-auto/disk "$(list-devices disk | head -n 1)"
+d-i partman/early_command string debconf-set partman-auto/disk "\$(list-devices disk | head -n 1)"
 d-i partman-partitioning/choose_label string gpt
 d-i partman-partitioning/default_label string gpt
 d-i partman/default_filesystem string ext4 .
@@ -151,16 +144,19 @@ d-i partman/confirm_nooverwrite boolean true
 d-i partman-md/device_remove_md boolean true
 d-i partman-lvm/device_remove_lvm boolean true
 d-i partman-lvm/confirm_nooverwrite boolean true
-d-i base-installer/kernel/image string linux-image-amd64
-d-i base-installer/install-recommends boolean false
-d-i apt-setup/services-select multiselect security, updates
-d-i apt-setup/security_path string /debian-security
-d-i apt-setup/local0/source boolean false
-tasksel tasksel/first multiselect ssh-server
+d-i passwd/root-login boolean true
+d-i passwd/make-user boolean false
+d-i passwd/root-password-crypted password $password
+d-i pkgsel/upgrade select full-upgrade
+d-i preseed/late_command string \
+in-target sh -c 'sed -Ei "s/^#?PermitRootLogin .+/PermitRootLogin yes/" /etc/ssh/sshd_config'; \
+in-target sed -i 's/quiet/& apparmor=0/' /etc/default/grub; \
+in-target grub-mkconfig -o /boot/grub/grub.cfg; \
+in-target sh -c 'echo $hostname > /etc/hostname $latecommand
+d-i preseed/early_command string $earlycheck
+d-i time/zone string UTC
 popularity-contest popularity-contest/participate boolean false
-d-i grub-installer/bootdev string default
-d-i grub-installer/force-efi-extra-removable boolean true
-d-i finish-install/reboot_in_progress note
+tasksel tasksel/first multiselect ssh-server
 EOF
 
 for file in "${files[@]}"; do
