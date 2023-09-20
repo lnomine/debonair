@@ -1,6 +1,6 @@
 # Debonair
 
-Debonair helps with having a identical Debian base wherever you need it to be. Inspired by https://github.com/bohanyang/debi with notable changes to fit my needs.
+Debonair ensures you have an identical Debian base wherever you need it, taking inspiration from https://github.com/bohanyang/debi and incorporating significant changes to tailor it to my specific requirements.
 
 ## Installation
 
@@ -14,7 +14,6 @@ git clone https://github.com/lnomine/debonair.git
 ./start.sh -h myhostname -o 0 -r 10000 -m my.http.repo
 
 # -o 'override' if your netmask/gateway is considered as invalid by the Debian installer
-
 
 # -r 'rootsize' in megabytes
 
