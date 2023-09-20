@@ -46,7 +46,6 @@ files=("linux" "initrd.gz")
 
 ### Workarounds
 
-
 # Some providers are using systemd-resolved, some not...
 if [ "$dns" == "127.0.0.53" ];
 then
@@ -86,6 +85,7 @@ type="string"
 latecommand="'"
 fi
 
+# When booting files are elsewhere
 grep -q "/boot" /boot/grub/grub.cfg
 if [ $? -eq 1 ];
 then
