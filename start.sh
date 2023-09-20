@@ -1,10 +1,5 @@
 #!/bin/bash
 
-hostname=""
-override=""
-rootsize=""
-mirror=""
-
 show_help() {
     echo "Usage : $0 -h <hostname> -o <override> -r <rootsize> -m <mirror>"
     echo "Options :"
