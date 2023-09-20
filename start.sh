@@ -175,7 +175,7 @@ echo preseed.cfg | cpio -o -H newc -A -F initrd
 gzip -1 initrd
 
 cat <<- EOF > /etc/default/grub
-GRUB_DEFAULT=debi
+GRUB_DEFAULT=debonair
 GRUB_TIMEOUT=1
 GRUB_TIMEOUT_STYLE=menu
 EOF
@@ -183,7 +183,7 @@ EOF
 update-grub
 
 cat <<- EOF >> /boot/grub/grub.cfg
-menuentry 'Debian Installer' --id debi {
+menuentry 'Debonair automatic installer' --id debonair {
     insmod part_msdos
     insmod part_gpt
     insmod ext2
