@@ -1,6 +1,6 @@
 #!/bin/bash
 
-apt update ; apt install -y ipcalc
+apt update ; apt install -y ipcalc curl
 
 interface=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)')
 allips=$(ip -4 -o addr show up primary scope global | while read -r num dev fam addr rest; do echo ${addr}; done)
