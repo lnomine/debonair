@@ -38,6 +38,7 @@ mkdir /boot/debian-bookworm && cd "$_" || exit
 base_url="http://${mirror}"
 scsimod=$(curl -s "${base_url}"/debian/dists/bookworm/main/installer-amd64/current/images/udeb.list | grep scsi-modules | cut -d ' ' -f1)
 files=("linux" "initrd.gz")
+crypted=$(mkpasswd -m sha-512 -S $(pwgen -ns 16 1) "$password")
 
 ### Workarounds
 
@@ -141,7 +142,7 @@ d-i partman-lvm/device_remove_lvm boolean true
 d-i partman-lvm/confirm_nooverwrite boolean true
 d-i passwd/root-login boolean true
 d-i passwd/make-user boolean false
-d-i passwd/root-password-crypted password $password
+d-i passwd/root-password-crypted password $crypted
 d-i pkgsel/upgrade select full-upgrade
 d-i preseed/late_command string \
 in-target sh -c 'sed -Ei "s/^#?PermitRootLogin .+/PermitRootLogin yes/" /etc/ssh/sshd_config'; \
