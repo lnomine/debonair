@@ -52,7 +52,7 @@ crypted=$(mkpasswd -m sha-512 -S $(pwgen -ns 16 1) "$password")
 # Some providers are using systemd-resolved, some not...
 if [ "$dns" == "127.0.0.53" ];
 then
-dns=$(grep -w "DNS" /etc/systemd/resolved.conf | grep -v "\#" | cut -d '=' -f2 | awk '{ print $1 }')
+dns=$(resolvectl | grep "Current DNS" | awk '{print $4}')
 fi
 
 # Many images out there, with altnames... or not. WIP: improve the interface variable.
