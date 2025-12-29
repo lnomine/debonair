@@ -32,6 +32,11 @@ if [ -z "$hostname" ] || [ -z "$override" ] || [ -z "$rootsize" ] || [ -z "$mirr
     show_help
 fi
 
+if [ -z "$password" ]; then
+    echo "Error: password variable is not set"
+    exit 1
+fi
+
 source vars.sh
 mkdir /boot/debian-${RELEASE} && cd "$_" || exit
 
