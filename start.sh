@@ -1,5 +1,7 @@
 #!/bin/bash
 
+RELEASE="trixie"
+
 show_help() {
     echo "Usage : $0 -h <hostname> -o <override> -r <rootsize> -m <mirror>"
     echo "Options :"
@@ -31,12 +33,12 @@ if [ -z "$hostname" ] || [ -z "$override" ] || [ -z "$rootsize" ] || [ -z "$mirr
 fi
 
 source vars.sh
-mkdir /boot/debian-bookworm && cd "$_" || exit
+mkdir /boot/debian-${RELEASE} && cd "$_" || exit
 
 ### Preseed-only vars
 
 base_url="http://${mirror}"
-scsimod=$(curl -s "${base_url}"/debian/dists/bookworm/main/installer-amd64/current/images/udeb.list | grep scsi-modules | cut -d ' ' -f1)
+scsimod=$(curl -s "${base_url}"/debian/dists/${RELEASE}/main/installer-amd64/current/images/udeb.list | grep scsi-modules | cut -d ' ' -f1)
 files=("linux" "initrd.gz")
 crypted=$(mkpasswd -m sha-512 -S $(pwgen -ns 16 1) "$password")
 
@@ -114,7 +116,7 @@ d-i mirror/protocol string http
 d-i mirror/http/hostname string $mirror
 d-i mirror/http/directory string /debian
 d-i mirror/http/proxy string
-d-i mirror/suite string bookworm
+d-i mirror/suite string $RELEASE
 d-i netcfg/choose_interface select auto
 d-i netcfg/disable_autoconfig boolean true
 d-i netcfg/get_ipaddress string $ip
@@ -156,7 +158,7 @@ tasksel tasksel/first multiselect ssh-server
 EOF
 
 for file in "${files[@]}"; do
-  until curl -sLO "$base_url/debian/dists/bookworm/main/installer-amd64/current/images/netboot/debian-installer/amd64/$file"; do
+  until curl -sLO "$base_url/debian/dists/${RELEASE}/main/installer-amd64/current/images/netboot/debian-installer/amd64/$file"; do
     echo "Retrying..."
     rm "$file"
     sleep 5
@@ -182,7 +184,7 @@ menuentry 'Debonair automatic installer' --id debonair {
     insmod ext2
     insmod xfs
     insmod btrfs
-    linux ${bootpart}debian-bookworm/linux lowmem/low=1
-    initrd ${bootpart}debian-bookworm/initrd.gz
+    linux ${bootpart}debian-${RELEASE}/linux lowmem/low=1
+    initrd ${bootpart}debian-${RELEASE}/initrd.gz
 }
 EOF
